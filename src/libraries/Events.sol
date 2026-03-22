@@ -40,9 +40,9 @@ library Events {
 
     event ProceedsDistributed(
         uint256 indexed projectId,
-        uint256 totalInvestorReturn,
+        uint256 investorFunds,
         uint256 platformFee,
-        uint256 collectorRemainder
+        uint256 collectorFunds
     );
 
     event ProjectDefaulted(

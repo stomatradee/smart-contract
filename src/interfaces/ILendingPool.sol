@@ -24,9 +24,9 @@ interface ILendingPool {
     event BuyerPaymentRecorded(uint256 indexed projectId, uint256 amount);
     event ProfitDistributed(
         uint256 indexed projectId,
-        uint256 totalInvestorReturn,
+        uint256 investorFunds,
         uint256 platformFee,
-        uint256 collectorRemainder
+        uint256 collectorFunds
     );
     event InvestorFundsClaimed(uint256 indexed projectId, address indexed investor, uint256 amount);
     event CollectorFundsClaimed(uint256 indexed projectId, address indexed collector, uint256 amount);

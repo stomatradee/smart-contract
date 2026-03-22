@@ -222,15 +222,15 @@ contract IntegrationTest is Test {
         );
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, INV_RETURN_T1,   "T1: totalInvestorReturn correct");
+        assertEq(dist.investorFunds, INV_RETURN_T1,   "T1: investorFunds correct");
         assertEq(dist.platformFee,         PLATFORM_FEE_T1, "T1: platformFee correct");
-        assertEq(dist.collectorRemainder,  REMAINDER_T1,    "T1: collectorRemainder correct");
-        assertTrue(dist.distributed, "T1: distribution should be marked done");
+        assertEq(dist.collectorFunds,  REMAINDER_T1,    "T1: collectorFunds correct");
+        assertTrue(dist.finalized, "T1: distribution should be marked done");
 
         assertEq(
             treasury.projectBalances(pid, address(usdc)),
             INV_RETURN_T1 + REMAINDER_T1,
-            "T1: treasury should hold investorReturn + collectorRemainder"
+            "T1: treasury should hold investorReturn + collectorFunds"
         );
 
         uint256 aBalBefore = usdc.balanceOf(investorA);
@@ -320,9 +320,9 @@ contract IntegrationTest is Test {
             "T2: status should be DISBURSED"
         );
 
-        // totalInvestorReturn = 30M + 10k×50 = 30,500,000
+        // investorFunds = 30M + 10k×50 = 30,500,000
         // platformFee         = 10k×150       =  1,500,000
-        // collectorRemainder  = 42M − 30.5 − 1.5 = 10,000,000
+        // collectorFunds  = 42M − 30.5 − 1.5 = 10,000,000
         uint256 platformBefore = usdc.balanceOf(platformWallet);
 
         vm.prank(admin);
@@ -331,8 +331,8 @@ contract IntegrationTest is Test {
         assertEq(usdc.balanceOf(platformWallet) - platformBefore, PLATFORM_FEE_T2, "T2: platform fee should be 1.5M");
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, INV_RETURN_T2, "T2: totalInvestorReturn should be 30.5M");
-        assertEq(dist.collectorRemainder,  REMAINDER_T2,  "T2: collectorRemainder should be 10M");
+        assertEq(dist.investorFunds, INV_RETURN_T2, "T2: investorFunds should be 30.5M");
+        assertEq(dist.collectorFunds,  REMAINDER_T2,  "T2: collectorFunds should be 10M");
 
         vm.prank(investorA);
         pool.claimInvestorFunds(pid);
@@ -488,10 +488,10 @@ contract IntegrationTest is Test {
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
 
-        assertEq(dist.totalInvestorReturn, BUYER_PAY_T5, "T5: totalInvestorReturn should equal the buyer payment (waterfall)");
+        assertEq(dist.investorFunds, BUYER_PAY_T5, "T5: investorFunds should equal the buyer payment (waterfall)");
         assertEq(dist.platformFee,        0, "T5: platformFee should be 0 (underpayment)");
-        assertEq(dist.collectorRemainder, 0, "T5: collectorRemainder should be 0 (underpayment)");
-        assertTrue(dist.collectorClaimed, "T5: collectorClaimed should be auto-true when remainder = 0");
+        assertEq(dist.collectorFunds, 0, "T5: collectorFunds should be 0 (underpayment)");
+        assertTrue(dist.collectorWithdrawn, "T5: collectorWithdrawn should be auto-true when remainder = 0");
 
         assertEq(usdc.balanceOf(platformWallet), 0, "T5: platformWallet should receive nothing");
         assertEq(treasury.projectBalances(pid, address(usdc)), BUYER_PAY_T5, "T5: treasury should hold the underpaid amount for investors");
@@ -524,7 +524,7 @@ contract IntegrationTest is Test {
         assertEq(
             uint8(pool.getProject(pid).status),
             uint8(DataTypes.ProjectStatus.COMPLETED),
-            "T5: project should be COMPLETED (collectorClaimed was auto-set on zero remainder)"
+            "T5: project should be COMPLETED (collectorWithdrawn was auto-set on zero remainder)"
         );
 
         assertLt(usdc.balanceOf(investorA), 50_000_000, "T5: investorA should have less than initial balance (partial recovery)");

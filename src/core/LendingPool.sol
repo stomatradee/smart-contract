@@ -98,12 +98,12 @@ contract LendingPool is AccessControl, ReentrancyGuard, Pausable, ILendingPool {
         }
 
         DataTypes.Distribution storage dist = _distributions[projectId];
-        if (!dist.distributed)            revert LendingPool__NotDistributed(projectId);
-        if (dist.collectorRemainder == 0) revert LendingPool__NoRemainderToClaim(projectId);
-        if (dist.collectorClaimed)        revert LendingPool__RemainderAlreadyClaimed(projectId);
+        if (!dist.finalized)            revert LendingPool__NotDistributed(projectId);
+        if (dist.collectorFunds == 0) revert LendingPool__NoRemainderToClaim(projectId);
+        if (dist.collectorWithdrawn)        revert LendingPool__RemainderAlreadyClaimed(projectId);
 
-        uint256 amount = dist.collectorRemainder;
-        dist.collectorClaimed = true;
+        uint256 amount = dist.collectorFunds;
+        dist.collectorWithdrawn = true;
 
         treasury.release(projectId, pd.acceptedToken, amount, msg.sender);
         emit CollectorFundsClaimed(projectId, msg.sender, amount);
@@ -165,7 +165,7 @@ contract LendingPool is AccessControl, ReentrancyGuard, Pausable, ILendingPool {
         }
 
         DataTypes.Distribution storage dist = _distributions[projectId];
-        if (!dist.distributed) revert LendingPool__NotDistributed(projectId);
+        if (!dist.finalized) revert LendingPool__NotDistributed(projectId);
 
         uint256 idx = _investorIndex[projectId][msg.sender];
         if (idx == 0) revert LendingPool__NotInvestor(projectId, msg.sender);
@@ -173,7 +173,7 @@ contract LendingPool is AccessControl, ReentrancyGuard, Pausable, ILendingPool {
         DataTypes.Investment storage inv = _investments[projectId][idx - 1];
         if (inv.claimed) revert LendingPool__AlreadyClaimed(projectId, msg.sender);
 
-        uint256 myReturn = (dist.totalInvestorReturn * inv.amount) / _lendingState[projectId].totalFunded;
+        uint256 myReturn = (dist.investorFunds * inv.amount) / _lendingState[projectId].totalFunded;
         inv.claimed = true;
         dist.claimedInvestorCount++;
 
@@ -229,35 +229,35 @@ contract LendingPool is AccessControl, ReentrancyGuard, Pausable, ILendingPool {
 
         uint256 actualInvestorReturn;
         uint256 actualPlatformFee;
-        uint256 collectorRemainder;
+        uint256 collectorFunds;
 
         if (amount >= fullRequired) {
             actualInvestorReturn = theoreticalInvestorReturn;
             actualPlatformFee    = theoreticalPlatformFee;
-            collectorRemainder   = amount - fullRequired;
+            collectorFunds   = amount - fullRequired;
         } else if (amount >= theoreticalInvestorReturn) {
             actualInvestorReturn = theoreticalInvestorReturn;
             actualPlatformFee    = amount - theoreticalInvestorReturn;
-            collectorRemainder   = 0;
+            collectorFunds   = 0;
         } else {
             actualInvestorReturn = amount;
             actualPlatformFee    = 0;
-            collectorRemainder   = 0;
+            collectorFunds   = 0;
         }
 
         _lendingState[projectId].buyerPaymentAmount = amount;
         projectNft.updateStatus(projectId, DataTypes.ProjectStatus.SETTLED);
 
         DataTypes.Distribution storage dist = _distributions[projectId];
-        dist.totalInvestorReturn = actualInvestorReturn;
+        dist.investorFunds = actualInvestorReturn;
         dist.platformFee         = actualPlatformFee;
-        dist.collectorRemainder  = collectorRemainder;
-        dist.distributed         = true;
+        dist.collectorFunds  = collectorFunds;
+        dist.finalized         = true;
 
-        if (collectorRemainder == 0) dist.collectorClaimed = true;
+        if (collectorFunds == 0) dist.collectorWithdrawn = true;
 
         emit BuyerPaymentRecorded(projectId, amount);
-        emit ProfitDistributed(projectId, actualInvestorReturn, actualPlatformFee, collectorRemainder);
+        emit ProfitDistributed(projectId, actualInvestorReturn, actualPlatformFee, collectorFunds);
 
         IERC20(pd.acceptedToken).safeTransferFrom(msg.sender, address(treasury), amount);
         treasury.deposit(projectId, pd.acceptedToken, amount, msg.sender);
@@ -377,7 +377,7 @@ contract LendingPool is AccessControl, ReentrancyGuard, Pausable, ILendingPool {
         address collector,
         DataTypes.Distribution storage dist
     ) internal {
-        if (dist.collectorClaimed && dist.claimedInvestorCount == _investments[projectId].length) {
+        if (dist.collectorWithdrawn && dist.claimedInvestorCount == _investments[projectId].length) {
             projectNft.updateStatus(projectId, DataTypes.ProjectStatus.COMPLETED);
             emit ProjectCompleted(projectId);
             accessRegistry.incrementCompletedCount(collector);

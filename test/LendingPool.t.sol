@@ -615,10 +615,10 @@ contract LendingPoolTest is Test {
         pool.recordBuyerPayment(pid, BUYER_OVERPAYS);
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, INVESTOR_RETURN);
+        assertEq(dist.investorFunds, INVESTOR_RETURN);
         assertEq(dist.platformFee,         PLATFORM_FEE);
-        assertEq(dist.collectorRemainder,  BUYER_OVERPAYS - FULL_REQUIRED);
-        assertTrue(dist.distributed);
+        assertEq(dist.collectorFunds,  BUYER_OVERPAYS - FULL_REQUIRED);
+        assertTrue(dist.finalized);
     }
 
     function test_recordBuyerPayment_immediatelyReleasesPlatformFee() public {
@@ -657,9 +657,9 @@ contract LendingPoolTest is Test {
         pool.recordBuyerPayment(pid, INVESTOR_RETURN);
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, INVESTOR_RETURN);
+        assertEq(dist.investorFunds, INVESTOR_RETURN);
         assertEq(dist.platformFee,         0);
-        assertEq(dist.collectorRemainder,  0);
+        assertEq(dist.collectorFunds,  0);
     }
 
     function test_recordBuyerPayment_betweenInvestorAndFull() public {
@@ -669,9 +669,9 @@ contract LendingPoolTest is Test {
         pool.recordBuyerPayment(pid, INVESTOR_RETURN + 50e6);
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, INVESTOR_RETURN);
+        assertEq(dist.investorFunds, INVESTOR_RETURN);
         assertEq(dist.platformFee,         50e6);
-        assertEq(dist.collectorRemainder,  0);
+        assertEq(dist.collectorFunds,  0);
     }
 
     function test_recordBuyerPayment_severeUnderpay_investorsShareProRata() public {
@@ -681,9 +681,9 @@ contract LendingPoolTest is Test {
         pool.recordBuyerPayment(pid, INVESTOR_RETURN / 2);
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, INVESTOR_RETURN / 2);
+        assertEq(dist.investorFunds, INVESTOR_RETURN / 2);
         assertEq(dist.platformFee,         0);
-        assertEq(dist.collectorRemainder,  0);
+        assertEq(dist.collectorFunds,  0);
     }
 
     function test_recordBuyerPayment_zeroRemainderAutoMarksCollectorClaimed() public {
@@ -692,8 +692,8 @@ contract LendingPoolTest is Test {
         pool.recordBuyerPayment(pid, FULL_REQUIRED);
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.collectorRemainder, 0);
-        assertTrue(dist.collectorClaimed);
+        assertEq(dist.collectorFunds, 0);
+        assertTrue(dist.collectorWithdrawn);
     }
 
     function test_recordBuyerPayment_revertOnZeroAmount() public {
@@ -789,7 +789,7 @@ contract LendingPoolTest is Test {
         vm.prank(collector);
         pool.claimCollectorFunds(pid);
 
-        assertTrue(pool.getDistribution(pid).collectorClaimed);
+        assertTrue(pool.getDistribution(pid).collectorWithdrawn);
     }
 
     function test_claimCollectorFunds_emitsEvent() public {
@@ -886,15 +886,15 @@ contract LendingPoolTest is Test {
         pool.recordBuyerPayment(pid, 150e6);
 
         DataTypes.Distribution memory dist = pool.getDistribution(pid);
-        assertEq(dist.totalInvestorReturn, 150e6);
+        assertEq(dist.investorFunds, 150e6);
         assertEq(dist.platformFee,         0);
-        assertEq(dist.collectorRemainder,  0);
+        assertEq(dist.collectorFunds,  0);
 
         uint256 before = usdc.balanceOf(inv1);
         vm.prank(inv1); pool.claimInvestorFunds(pid);
         assertEq(usdc.balanceOf(inv1) - before, 150e6);
 
-        // collectorRemainder == 0 → collectorClaimed auto-set → COMPLETED
+        // collectorFunds == 0 → collectorWithdrawn auto-set → COMPLETED
         assertEq(uint8(pool.getProject(pid).status), uint8(DataTypes.ProjectStatus.COMPLETED));
     }
 
