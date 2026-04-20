@@ -163,15 +163,15 @@ contract Deploy is Script {
     function _phase5TestData(Deployed memory d, address deployer) internal {
         console2.log("\n--- Phase 5: Test Data (testnet) ---");
 
-        MockERC20   usdc       = MockERC20(d.usdc);
-        MockERC20   usdt       = MockERC20(d.usdt);
-        ProjectNFT  projectNft = ProjectNFT(d.projectNft);
-        LendingPool pool       = LendingPool(d.lendingPool);
+        MockERC20 usdc = MockERC20(d.usdc);
+        MockERC20 usdt = MockERC20(d.usdt);
 
+        // Mint tokens ke deployer untuk testing nanti
         usdc.mint(deployer, 10_000_000 * 1e6);
         usdt.mint(deployer, 10_000_000 * 1e6);
         console2.log("  [+] Minted 10M USDC + 10M USDT to deployer");
 
+        // Mint ke investor test (jika ada)
         address inv1 = vm.envOr("INVESTOR_1", address(0));
         address inv2 = vm.envOr("INVESTOR_2", address(0));
         address inv3 = vm.envOr("INVESTOR_3", address(0));
@@ -180,38 +180,16 @@ contract Deploy is Script {
         if (inv2 != address(0)) { usdc.mint(inv2, 1_000_000 * 1e6); console2.log("  [+] 1M USDC to INVESTOR_2:", inv2); }
         if (inv3 != address(0)) { usdc.mint(inv3, 1_000_000 * 1e6); console2.log("  [+] 1M USDC to INVESTOR_3:", inv3); }
 
+        // Register deployer sebagai collector (supaya bisa mint project nanti)
         AccessRegistry(d.accessRegistry).registerCollector("QmDeployerProfile");
-        console2.log("  [+] Registered deployer as sample collector");
+        console2.log("  [+] Registered deployer as collector");
 
+        // Approve Treasury untuk spending (perlu untuk invest nanti)
         usdc.approve(address(Treasury(d.treasury)), type(uint256).max);
         usdt.approve(address(Treasury(d.treasury)), type(uint256).max);
+        console2.log("  [+] Approved Treasury for USDC + USDT");
 
-        uint256 pid1 = projectNft.mintProject(
-            d.usdc,
-            "Beras",
-            10_000,
-            100_000_000,
-            3 days,
-            30 days,
-            "QmSampleProjectBeras"
-        );
-        projectNft.verifyProject(pid1);
-        console2.log("  [+] Sample Project 1 (Beras, USDC) id:", pid1);
-
-        uint256 pid2 = projectNft.mintProject(
-            d.usdt,
-            "Kopi Robusta",
-            5_000,
-            200_000_000,
-            3 days,
-            30 days,
-            "QmSampleProjectKopi"
-        );
-        projectNft.verifyProject(pid2);
-        console2.log("  [+] Sample Project 2 (Kopi, USDT)  id:", pid2);
-        console2.log("  Both projects verified (status: OPEN)");
-
-        pool;
+        console2.log("  [i] No sample projects created. Mint manually via frontend or cast.");
     }
 
     function _printHeader(address deployer, address platformWallet, bool isMainnet) internal view {
